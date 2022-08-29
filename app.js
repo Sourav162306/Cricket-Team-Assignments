@@ -3,148 +3,125 @@ const path = require("path");
 
 const { open } = require("sqlite");
 const sqlite3 = require("sqlite3");
+
 const app = express();
 app.use(express.json());
 
-const dbPath = path.join(__dirname, "moviesData.db");
-
+const dbPath = path.join(__dirname, "cricketTeam.db");
 let db = null;
 
 const initializeDBAndServer = async () => {
-  try {
-    db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database,
-    });
-    app.listen(3011, () => {
-      console.log("Server Running at http://localhost:3011/");
-    });
-  } catch (e) {
-    console.log(`DB Error: ${e.message}`);
-    process.exit(1);
-  }
+    try {
+        db = await open({
+            filename: dbPath,
+            driver: sqlite3.Database,
+        });
+        app.listen(3051, () => {
+            console.log("Server Running at http://localhost:3051/");
+        });
+    } catch (e) {
+        console.log(`DB Error: ${e.message}`);
+        process.exit(1);
+    }
 };
-
 initializeDBAndServer();
 
+//convert the database object to response object
+
 const convertDbObjectToResponseObject = (dbObject) => {
-  return {
-    movieId: dbObject.movie_id,
-    directorId: dbObject.director_id,
-    movieName: dbObject.movie_name,
-    leadActor: dbObject.lead_actor,
-  };
+    return {
+        playerId: dbObject.player_id,
+        playerName: dbObject.player_name,
+        jerseyNumber: dbObject.jersey_number,
+        role: dbObject.role,
+    };
 };
 
-//API 1
-app.get("/movies/", async (request, response) => {
-  const getMoviesQuery = `
+// API 1 // Get players API
+
+app.get("/players/", async (request, response) => {
+    const getPlayersQuery = `
     SELECT
-      movie_name
+      *
     FROM
-      movie
+      cricket_team
     ORDER BY
-      movie_id;`;
-  const moviesArray = await db.all(getMoviesQuery);
-  response.send(
-    moviesArray.map(
-      (eachMovie) => convertDbObjectToResponseObject(eachMovie) //converting the database object to response object of eachPlayer
-    )
-  );
+      player_id;`;
+    const playersArray = await db.all(getPlayersQuery);
+    response.send(
+        playersArray.map(
+            (eachPlayer) => convertDbObjectToResponseObject(eachPlayer) //converting the database object to response object of eachPlayer
+        )
+    );
 });
 
-//API 2
-app.post("/movies/", async (request, response) => {
-  const movieDetails = request.body;
-  const { directorId, movieName, leadActor } = movieDetails;
-  const movieQuery = `
-        INSERT INTO
-        movie (director_id, movie_name, lead_actor)
-        VALUES (
-            ${directorId},
-           '${movieName}',
-           '${leadActor}'
-        );
+// API 2  //Add Player API
+
+app.post("/players/", async (request, response) => {
+    const playerDetails = request.body;
+    const { playerName, jerseyNumber, role } = playerDetails;
+
+    const addPlayerQuery = `
+    INSERT INTO
+    cricket_team (player_name,jersey_number,role)
+    VALUES(
+        '${playerName}',
+        ${jerseyNumber},
+       '${role}'
+    );
     `;
-  const dbResponse = await db.run(movieQuery);
-  const movieId = dbResponse.lastID;
-  response.send("Movie Successfully Added");
+    const dbResponse = await db.run(addPlayerQuery);
+    const playerId = dbResponse.lastID;
+    response.send("Player Added to Team");
 });
 
-//API 3
-app.get("/movies/:movieId/", async (request, response) => {
-  const { movieId } = request.params;
-  const getMovieQuery = `
+//API 3 // GET A Player API
+
+app.get("/players/:playerId/", async (request, response) => {
+    const { playerId } = request.params;
+    const getPlayerQuery = `
     SELECT
       *
     FROM
-      movie
+      cricket_team
     WHERE
-      movie_id = ${movieId};
-      `;
-  const movie = await db.get(getMovieQuery);
-  response.send(convertDbObjectToResponseObject(movie));
+      player_id = ${playerId};`;
+    const player = await db.get(getPlayerQuery);
+    response.send(convertDbObjectToResponseObject(player)); //converting the database object to response object of player
 });
 
-//API 4
+// API 4 // Update Player API
 
-app.put("/movies/:movieId/", async (request, response) => {
-  const { movieId } = request.params;
-  const movieDetails = request.body;
-  const { directorId, movieName, leadActor } = movieDetails;
-  const updateMovieDetails = `
-    UPDATE
-        movie
-    SET
-       director_id = ${directorId},
-       movie_name = '${movieName}',
-       lead_actor = '${leadActor}'
-    WHERE
-        movie_id = ${movieId};
-  `;
-  await db.run(updateMovieDetails);
-  response.send("Movie Details Updated");
+app.put("/players/:playerId/", async (request, response) => {
+    const { playerId } = request.params;
+    const playerDetails = request.body;
+    const { playerName, jerseyNumber, role } = playerDetails;
+    const updatePlayerQuery = `
+        UPDATE
+            cricket_team
+        SET
+            player_name = '${playerName}',
+            jersey_number = ${jerseyNumber},
+            role = '${role}'
+        WHERE
+            player_id = ${playerId};
+    `;
+    await db.run(updatePlayerQuery);
+    response.send("Player Details Updated");
 });
 
-//API 5
+// API 5 // Remove Player API
 
-app.delete("/movies/:movieId/", async (request, response) => {
-  const { movieId } = request.params;
-  const getMovieQuery = `
-    DELETE FROM
-      movie
-    WHERE
-       movie_id = ${movieId};
-      `;
-  const movie = await db.get(getMovieQuery);
-  response.send("Movie Removed");
-});
-
-//API 6
-app.get("/directors/", async (request, response) => {
-  const getDirectorsQuery = `
-    SELECT
-      *
+app.delete("/players/:playerId/", async (request, response) => {
+    const { playerId } = request.params;
+    const deletePlayerQuery = `
+    DELETE
     FROM
-      director
-    ORDER BY
-      director_id;`;
-  const directorsArray = await db.all(getDirectorsQuery);
-  response.send(directorsArray);
-});
-
-//API 7
-app.get("/directors/:directorId/movies/", async (request, response) => {
-  const { directorId } = request.params;
-  const getDirectorMovieQuery = `
-    SELECT
-     *
-    FROM
-     movie
+      cricket_team
     WHERE
-      director_id = ${directorId};`;
-  const moviesArray = await db.all(getDirectorMovieQuery);
-  response.send(moviesArray);
+      player_id = ${playerId};`;
+    await db.get(deletePlayerQuery);
+    response.send("Player Removed");
 });
 
 module.exports = app;
